@@ -1,18 +1,11 @@
-import requests
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-from tensorflow.keras.models import load_model
+from flask import request, jsonify
 from PIL import Image
 import numpy as np
-
-app = Flask(__name__)
-CORS(app)
-model = load_model("tumor_model.keras")
-class_names = ['Glioma', 'Meningioma', 'no tumor', 'Pituitary']
-
+from app import app, model, class_names
 
 @app.route("/predict", methods=["POST"])
 def predict():
+    # Check if an image file is in the request
     if "file" not in request.files:
         return jsonify({"error": "No file part"}), 400
 
@@ -21,19 +14,16 @@ def predict():
         return jsonify({"error": "No selected file"}), 400
 
     try:
+        # Open and preprocess the image
         image = Image.open(file)
         image = image.resize((256, 256))
-        image = np.array(image)
-        image = image / 255.0
+        image = np.array(image) / 255.0  # Normalize image
 
+        # Predict using the loaded model
         prediction = model.predict(image[np.newaxis, ...])
         predicted_class = class_names[np.argmax(prediction)]
-
 
         return jsonify({"prediction": predicted_class})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 400
-
-if __name__ == "__main__":
-    app.run(debug=True)
